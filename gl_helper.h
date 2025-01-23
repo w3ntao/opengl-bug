@@ -1,11 +1,11 @@
+#pragma once
+
 // clang-format off
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 // clang-format on
 
-#include <iomanip>
 #include <iostream>
-#include <thread>
 #include <vector>
 
 class Shader {
@@ -116,8 +116,7 @@ class GLHelper {
     int resolution_y = 0;
 
 public:
-    uint8_t *gpu_frame_buffer = nullptr;
-    // std::vector<uint8_t> frame_buffer;
+    std::vector<uint8_t> frame_buffer;
 
     ~GLHelper() {
         if (initialized) {
@@ -125,7 +124,7 @@ public:
         }
     }
 
-    void init(const std::string &title, int width, int height) {
+    void init(const std::string &title, const int width, const int height) {
         initialized = true;
 
         resolution_x = width;
@@ -133,24 +132,16 @@ public:
 
         const uint num_pixels = width * height;
 
-        /*
-        frame_buffer = std::vector<uint8_t>(num_pixels * 3);
-        for (uint idx = 0; idx < num_pixels; ++idx) {
-            frame_buffer[idx * 3 + 0] = 0;
-            frame_buffer[idx * 3 + 1] = 0;
-            frame_buffer[idx * 3 + 2] = 0;
+        frame_buffer = std::vector<uint8_t>(num_pixels * 3, 0);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const auto idx = y * width + x;
+
+                frame_buffer[idx * 3 + 0] = 255;
+                frame_buffer[idx * 3 + 1] = 0;
+                frame_buffer[idx * 3 + 2] = 0;
+            }
         }
-        */
-
-
-        const auto size = sizeof(uint8_t) * 3 * num_pixels;
-        cudaMallocManaged(&gpu_frame_buffer, size);
-        for (uint idx = 0; idx < num_pixels; ++idx) {
-            gpu_frame_buffer[idx * 3 + 0] = 0;
-            gpu_frame_buffer[idx * 3 + 1] = 0;
-            gpu_frame_buffer[idx * 3 + 2] = 0;
-        }
-
 
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -188,7 +179,7 @@ public:
         glfwTerminate();
     }
 
-    void create_window(uint width, uint height, const std::string &window_initial_name) {
+    void create_window(const uint width, const uint height, const std::string &window_initial_name) {
         window = glfwCreateWindow(width, height, window_initial_name.c_str(), NULL, NULL);
         if (window == NULL) {
             std::cout << "ERROR: failed to create GLFW window" << std::endl;
@@ -197,22 +188,10 @@ public:
         }
     }
 
-    /*
-    static std::string assemble_title(const float progress_percentage) {
-        std::stringstream stream;
-        stream << std::fixed << std::setprecision(1) << (progress_percentage * 100.0);
-        return stream.str() + "%";
-    }
-    */
 
     void draw_frame(const std::string &title) {
-        /*
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, resolution_x, resolution_y, 0, GL_RGB, GL_UNSIGNED_BYTE,
                      this->frame_buffer.data());
-        */
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, resolution_x, resolution_y, 0, GL_RGB, GL_UNSIGNED_BYTE,
-                     this->gpu_frame_buffer);
 
         glGenerateMipmap(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, texture);
@@ -281,25 +260,3 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 };
-
-
-int main() {
-    GLHelper gl_helper;
-
-    /*
-     * bug: (755, 1200)
-     * weird result: (750, 1200)
-     */
-
-    int width = 755;
-    int height = 1200;
-
-    gl_helper.init("initializing", width, height);
-
-    auto title = "resolution: " + std::to_string(width) + "x" + std::to_string(height);
-    gl_helper.draw_frame(title);
-
-    getchar();
-
-    return 0;
-}
